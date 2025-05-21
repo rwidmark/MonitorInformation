@@ -1,7 +1,7 @@
 ﻿<#
 MIT License
 
-Copyright (C) 2023 Robin Stolpe.
+Copyright (C) 2025 Robin Widmark.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,8 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 #>
-Function Get-RSMonitorInformation
-{
+Function Get-RSMonitorInformation {
     <#
         .SYNOPSIS
         Returns information about all the monitors that has been connected to the computer
@@ -48,16 +47,17 @@ Function Get-RSMonitorInformation
         # Return information about the monitor from both remote computer named Win10 and Win11
 
         .LINK
-        https://github.com/rstolpe/MonitorInformation/blob/main/README.md
+        https://github.com/rwidmark/MonitorInformation/blob/main/README.md
 
         .NOTES
-        Author:         Robin Stolpe
-        Mail:           robin@stolpe.io
-        Twitter:        https://twitter.com/rstolpes
-        Linkedin:       https://www.linkedin.com/in/rstolpe/
-        Website/Blog:   https://stolpe.io
-        GitHub:         https://github.com/rstolpe
-        PSGallery:      https://www.powershellgallery.com/profiles/rstolpe
+        Author:         Robin Widmark
+        Mail:           robin@widmark.dev
+        Website/Blog:   https://widmark.dev
+        X:              https://x.com/widmark_robin
+        Mastodon:       https://mastodon.social/@rwidmark
+		YouTube:		https://www.youtube.com/@rwidmark
+        Linkedin:       https://www.linkedin.com/in/rwidmark/
+        GitHub:         https://github.com/rwidmark
     #>
 
     # PNPDeviceID maps with InstanceName.trim("_0")
@@ -69,30 +69,25 @@ Function Get-RSMonitorInformation
         [String[]]$ComputerName = "localhost"
     )
 
-    foreach ($Computer in $ComputerName)
-    {
-        if (Test-WSMan -ComputerName $Computer -ErrorAction 'SilentlyContinue')
-        {
-            try
-            {
+    foreach ($Computer in $ComputerName) {
+        if (Test-WSMan -ComputerName $Computer -ErrorAction 'SilentlyContinue') {
+            try {
                 Write-Output "`n=== Monitor information from $Computer ===`n"
                 $CimSession = New-CimSession -ComputerName $Computer
                 $PnPInfo = Get-CimInstance -CimSession $CimSession -ClassName Win32_DesktopMonitor
-                if ($null -ne $CimSession)
-                {
-                    foreach ($MonInfo in $( Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace root\wmi ))
-                    {
-                        $DisplayPnPInfo = $PnPInfo | Where-Object {$MonInfo.InstanceName.trim("_0") -eq $_.PNPDeviceID}
+                if ($null -ne $CimSession) {
+                    foreach ($MonInfo in $( Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace root\wmi )) {
+                        $DisplayPnPInfo = $PnPInfo | Where-Object { $MonInfo.InstanceName.trim("_0") -eq $_.PNPDeviceID }
                         $GetManufacturer = $DisplayPnPInfo | Select-Object -ExpandProperty MonitorManufacturer
                         $GetManufacturer2 = Convert-MonitorManufacturer -Manufacturer $(($MonInfo.ManufacturerName | ForEach-Object { [char]$_ }) -join "")
 
                         [PSCustomObject]@{
-                            Active = $MonInfo.Active
-                            Status = $DisplayPnPInfo | Select-Object -ExpandProperty Status
-                            Availability = $DisplayPnPInfo | Select-Object -ExpandProperty Availability
-                            'Manufacturer Name' = if ($null -ne $GetManufacturer) { $GetManufacturer } else { $GetManufacturer2 }
-                            Model = ($MonInfo.UserFriendlyName | ForEach-Object { [char]$_ }) -join ""
-                            'Serial Number' = ($MonInfo.SerialNumberID | ForEach-Object { [char]$_ }) -join ""
+                            Active                = $MonInfo.Active
+                            Status                = $DisplayPnPInfo | Select-Object -ExpandProperty Status
+                            Availability          = $DisplayPnPInfo | Select-Object -ExpandProperty Availability
+                            'Manufacturer Name'   = if ($null -ne $GetManufacturer) { $GetManufacturer } else { $GetManufacturer2 }
+                            Model                 = ($MonInfo.UserFriendlyName | ForEach-Object { [char]$_ }) -join ""
+                            'Serial Number'       = ($MonInfo.SerialNumberID | ForEach-Object { [char]$_ }) -join ""
                             'Year Of Manufacture' = $MonInfo.YearOfManufacture
                             'Week Of Manufacture' = $MonInfo.WeekOfManufacture
                         }
@@ -100,27 +95,22 @@ Function Get-RSMonitorInformation
                 }
                 Remove-CimSession -InstanceId $CimSession.InstanceId
             }
-            catch
-            {
+            catch {
                 Write-Error $PSItem.Exception
-                if ($ComputerName -ge 1)
-                {
+                if ($ComputerName -ge 1) {
                     Continue
                 }
-                else
-                {
+                else {
                     break
                 }
             }
         }
-        else
-        {
+        else {
             Write-Output "$Computer are not connected to the network or it's trouble with WinRM"
         }
     }
 }
-Function Convert-MonitorManufacturer
-{
+Function Convert-MonitorManufacturer {
     <#
         .SYNOPSIS
         This should only be used by Get-RSMonitorInformation
@@ -136,16 +126,17 @@ Function Convert-MonitorManufacturer
         # Return the translation of the 3 letter code to the full name of the manufacturer, in this example it will return Philips
 
         .LINK
-        https://github.com/rstolpe/MonitorInformation/blob/main/README.md
+        https://github.com/rwidmark/MonitorInformation/blob/main/README.md
 
         .NOTES
-        Author:         Robin Stolpe
-        Mail:           robin@stolpe.io
-        Twitter:        https://twitter.com/rstolpes
-        Linkedin:       https://www.linkedin.com/in/rstolpe/
-        Website/Blog:   https://stolpe.io
-        GitHub:         https://github.com/rstolpe
-        PSGallery:      https://www.powershellgallery.com/profiles/rstolpe
+        Author:         Robin Widmark
+        Mail:           robin@widmark.dev
+        Website/Blog:   https://widmark.dev
+        X:              https://x.com/widmark_robin
+        Mastodon:       https://mastodon.social/@rwidmark
+		YouTube:		https://www.youtube.com/@rwidmark
+        Linkedin:       https://www.linkedin.com/in/rwidmark/
+        GitHub:         https://github.com/rwidmark
     #>
 
     [CmdletBinding()]
@@ -154,108 +145,107 @@ Function Convert-MonitorManufacturer
         [String]$Manufacturer
     )
 
-    Switch ($Manufacturer)
-    {
-        ACI    {
+    Switch ($Manufacturer) {
+        ACI {
             return "Asus"
         }
-        ACR    {
+        ACR {
             return "Acer"
         }
-        ACT    {
+        ACT {
             return "Targa"
         }
-        ADI    {
+        ADI {
             return "ADI Corporation"
         }
-        AMW    {
+        AMW {
             return "AMW"
         }
-        AOC    {
+        AOC {
             return "AOC"
         }
-        API    {
+        API {
             return "Acer"
         }
-        APP    {
+        APP {
             return "Apple"
         }
-        ART    {
+        ART {
             return "ArtMedia"
         }
-        AST    {
+        AST {
             return "AST Research"
         }
-        AUO    {
+        AUO {
             return "AU Optronics"
         }
-        BMM    {
+        BMM {
             return "BMM"
         }
-        BNQ    {
+        BNQ {
             return "BenQ"
         }
-        BOE    {
+        BOE {
             return "BOE Display Technology"
         }
-        CPL    {
+        CPL {
             return "Compal"
         }
-        CPQ    {
+        CPQ {
             return "COMPAQ"
         }
-        CTX    {
+        CTX {
             return "Chuntex"
         }
-        DEC    {
+        DEC {
             return "Digital Equipment Corporation"
         }
-        DEL    {
+        DEL {
             return "Dell"
         }
-        DPC    {
+        DPC {
             return "Delta"
         }
-        DWE    {
+        DWE {
             return "Daewoo"
         }
-        ECS    {
+        ECS {
             return "ELITEGROUP"
         }
-        EIZ    {
+        EIZ {
             return "EIZO"
         }
-        EPI    {
+        EPI {
             return "Envision"
         }
-        FCM    {
+        FCM {
             return "Funai"
         }
-        FUS    {
+        FUS {
             return "Fujitsu Siemens"
         }
-        GSM    {
+        GSM {
             return "LG (GoldStar)"
         }
-        GWY    {
+        GWY {
             return "Gateway"
         }
-        HEI    {
+        HEI {
             return "Hyundai Electronics"
         }
-        HIQ    {
+        HIQ {
             return "Hyundai ImageQuest"
         }
-        HIT    {
+        HIT {
             return "Hitachi"
         }
-        HSD    {
+        HSD {
             return "Hannspree"
         }
-        HSL    {
+        HSL {
             return "Hansol"
         }
-        HTC    {
+        HTC {
             return "Hitachi / Nissei Sangyo"
         }
         HWP {
@@ -264,148 +254,148 @@ Function Convert-MonitorManufacturer
         HPN {
             return "Hewlett Packard (HP)"
         }
-        IBM    {
+        IBM {
             return "IBM"
         }
-        ICL    {
+        ICL {
             return "Fujitsu"
         }
-        IFS    {
+        IFS {
             return "InFocus"
         }
-        IQT    {
+        IQT {
             return "Hyundai"
         }
-        IVM    {
+        IVM {
             return "Idek Iiyama"
         }
-        KDS    {
+        KDS {
             return "KDS"
         }
-        KFC    {
+        KFC {
             return "KFC Computek"
         }
-        LEN    {
+        LEN {
             return "Lenovo"
         }
-        LGD    {
+        LGD {
             return "LG"
         }
-        LKM    {
+        LKM {
             return "ADLAS / AZALEA"
         }
-        LNK    {
+        LNK {
             return "LINK"
         }
-        LPL    {
+        LPL {
             return "LG Philips"
         }
-        LTN    {
+        LTN {
             return "Lite-On"
         }
-        MAG    {
+        MAG {
             return "MAG InnoVision"
         }
-        MAX    {
+        MAX {
             return "Maxdata"
         }
-        MEI    {
+        MEI {
             return "Panasonic"
         }
-        MEL    {
+        MEL {
             return "Mitsubishi"
         }
-        MIR    {
+        MIR {
             return "miro"
         }
-        MTC    {
+        MTC {
             return "MITAC"
         }
-        NAN    {
+        NAN {
             return "NANAO"
         }
-        NEC    {
+        NEC {
             return "NEC"
         }
-        NOK    {
+        NOK {
             return "Nokia"
         }
         NVD {
             return "Nvidia"
         }
-        OQI    {
+        OQI {
             return "OPTIQUEST"
         }
-        PBN    {
+        PBN {
             return "Packard Bell"
         }
-        PCK    {
+        PCK {
             return "Daewoo"
         }
-        PDC    {
+        PDC {
             return "Polaroid"
         }
-        PGS    {
+        PGS {
             return "Princeton Graphic Systems"
         }
-        PHL    {
+        PHL {
             return "Philips"
         }
-        PRT    {
+        PRT {
             return "Princeton"
         }
-        REL    {
+        REL {
             return "Relisys"
         }
-        SAM    {
+        SAM {
             return "Samsung"
         }
-        SEC    {
+        SEC {
             return "Seiko Epson"
         }
-        SMC    {
+        SMC {
             return "Samtron"
         }
-        SMI    {
+        SMI {
             return "Smile"
         }
         SNI {
             return "Siemens"
         }
-        SNY    {
+        SNY {
             return "Sony"
         }
-        SPT    {
+        SPT {
             return "Sceptre"
         }
-        SRC    {
+        SRC {
             return "Shamrock"
         }
-        STN    {
+        STN {
             return "Samtron"
         }
-        STP    {
+        STP {
             return "Sceptre"
         }
         TAT {
             return "Tatung"
         }
-        TRL    {
+        TRL {
             return "Royal"
         }
-        TSB    {
+        TSB {
             return "Toshiba"
         }
-        UNM    {
+        UNM {
             return "Unisys"
         }
-        VSC    {
+        VSC {
             return "ViewSonic"
         }
-        WTC    {
+        WTC {
             return "Wen"
         }
-        ZCM    {
+        ZCM {
             return "Zenith"
         }
         default {
