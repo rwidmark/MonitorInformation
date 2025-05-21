@@ -1,11 +1,11 @@
-![GitHub](https://img.shields.io/github/license/rstolpe/MonitorInformation?style=plastic)  
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/rstolpe/MonitorInformation?sort=semver&style=plastic)  ![Last release](https://img.shields.io/github/release-date/rstolpe/MonitorInformation?style=plastic)
-![GitHub last commit](https://img.shields.io/github/last-commit/rstolpe/MonitorInformation?style=plastic)  
+![GitHub](https://img.shields.io/github/license/rwidmark/MonitorInformation?style=plastic)  
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/rwidmark/MonitorInformation?sort=semver&style=plastic)  ![Last release](https://img.shields.io/github/release-date/rwidmark/MonitorInformation?style=plastic)
+![GitHub last commit](https://img.shields.io/github/last-commit/rwidmark/MonitorInformation?style=plastic)  
 ![PSGallery downloads](https://img.shields.io/powershellgallery/dt/MonitorInformation?style=plastic)
 
 # MonitorInformation 
 This function will return information about monitors from local or remote computer.  
-I have added the result from PSScriptAnalyzer in [test folder](https://github.com/rstolpe/MonitorInformation/tree/main/test) 
+I have added the result from PSScriptAnalyzer in [test folder](https://github.com/rwidmark/MonitorInformation/tree/main/test) 
 
 ### This script will return the following information
 - Is the monitor active? (connected)
@@ -18,18 +18,20 @@ I have added the result from PSScriptAnalyzer in [test folder](https://github.co
 - Week Of Manufacture
 - You run this on multiple computers at the same time to display the information.
 
-If you use this function on a remote computer you need to make sure that you have [WinRM](https://github.com/rstolpe/Guides/blob/main/Windows/WinRM_GPO.md) activated.
+If you use this function on a remote computer you need to make sure that you have [WinRM](https://github.com/rwidmark/Guides/blob/main/Windows/WinRM_GPO.md) activated.
 
 # Links
-* [My PowerShell Collection](https://github.com/rstolpe/PSCollection)
-* [Webpage/Blog](https://www.stolpe.io)
-* [Twitter](https://twitter.com/rstolpes)
-* [LinkedIn](https://www.linkedin.com/in/rstolpe/)
-* [PowerShell Gallery](https://www.powershellgallery.com/profiles/rstolpe)
+* [My PowerShell Collection](https://github.com/rwidmark/PSCollection)
+* [Webpage/Blog](https://widmark.dev)
+* [X](https://twitter.com/widmark_robin)
+* [Mastodon](https://mastodon.social/@rwidmark)
+* [YouTube](https://www.youtube.com/@rwidmark)
+* [LinkedIn](https://www.linkedin.com/in/rwidmark/)
+* [GitHub](https://github.com/rwidmark)
 
 # Help
 Below I have specified things that I think will help people with this module.  
-You can also see the API for each function in the [help folder](https://github.com/rstolpe/MonitorInformation/tree/main/help)
+You can also see the API for each function in the [help folder](https://github.com/rwidmark/MonitorInformation/tree/main/help)
 
 ## Install
 Install for current user

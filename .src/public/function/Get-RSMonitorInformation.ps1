@@ -1,5 +1,4 @@
-﻿Function Get-RSMonitorInformation
-{
+﻿Function Get-RSMonitorInformation {
     <#
         .SYNOPSIS
         Returns information about all the monitors that has been connected to the computer
@@ -25,16 +24,17 @@
         # Return information about the monitor from both remote computer named Win10 and Win11
 
         .LINK
-        https://github.com/rstolpe/MonitorInformation/blob/main/README.md
+        https://github.com/rwidmark/MonitorInformation/blob/main/README.md
 
         .NOTES
-        Author:         Robin Stolpe
-        Mail:           robin@stolpe.io
-        Twitter:        https://twitter.com/rstolpes
-        Linkedin:       https://www.linkedin.com/in/rstolpe/
-        Website/Blog:   https://stolpe.io
-        GitHub:         https://github.com/rstolpe
-        PSGallery:      https://www.powershellgallery.com/profiles/rstolpe
+        Author:         Robin Widmark
+        Mail:           robin@widmark.dev
+        Website/Blog:   https://widmark.dev
+        X:              https://x.com/widmark_robin
+        Mastodon:       https://mastodon.social/@rwidmark
+		YouTube:		https://www.youtube.com/@rwidmark
+        Linkedin:       https://www.linkedin.com/in/rwidmark/
+        GitHub:         https://github.com/rwidmark
     #>
 
     # PNPDeviceID maps with InstanceName.trim("_0")
@@ -46,30 +46,25 @@
         [String[]]$ComputerName = "localhost"
     )
 
-    foreach ($Computer in $ComputerName)
-    {
-        if (Test-WSMan -ComputerName $Computer -ErrorAction 'SilentlyContinue')
-        {
-            try
-            {
+    foreach ($Computer in $ComputerName) {
+        if (Test-WSMan -ComputerName $Computer -ErrorAction 'SilentlyContinue') {
+            try {
                 Write-Output "`n=== Monitor information from $Computer ===`n"
                 $CimSession = New-CimSession -ComputerName $Computer
                 $PnPInfo = Get-CimInstance -CimSession $CimSession -ClassName Win32_DesktopMonitor
-                if ($null -ne $CimSession)
-                {
-                    foreach ($MonInfo in $( Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace root\wmi ))
-                    {
-                        $DisplayPnPInfo = $PnPInfo | Where-Object {$MonInfo.InstanceName.trim("_0") -eq $_.PNPDeviceID}
+                if ($null -ne $CimSession) {
+                    foreach ($MonInfo in $( Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace root\wmi )) {
+                        $DisplayPnPInfo = $PnPInfo | Where-Object { $MonInfo.InstanceName.trim("_0") -eq $_.PNPDeviceID }
                         $GetManufacturer = $DisplayPnPInfo | Select-Object -ExpandProperty MonitorManufacturer
                         $GetManufacturer2 = Convert-MonitorManufacturer -Manufacturer $(($MonInfo.ManufacturerName | ForEach-Object { [char]$_ }) -join "")
 
                         [PSCustomObject]@{
-                            Active = $MonInfo.Active
-                            Status = $DisplayPnPInfo | Select-Object -ExpandProperty Status
-                            Availability = $DisplayPnPInfo | Select-Object -ExpandProperty Availability
-                            'Manufacturer Name' = if ($null -ne $GetManufacturer) { $GetManufacturer } else { $GetManufacturer2 }
-                            Model = ($MonInfo.UserFriendlyName | ForEach-Object { [char]$_ }) -join ""
-                            'Serial Number' = ($MonInfo.SerialNumberID | ForEach-Object { [char]$_ }) -join ""
+                            Active                = $MonInfo.Active
+                            Status                = $DisplayPnPInfo | Select-Object -ExpandProperty Status
+                            Availability          = $DisplayPnPInfo | Select-Object -ExpandProperty Availability
+                            'Manufacturer Name'   = if ($null -ne $GetManufacturer) { $GetManufacturer } else { $GetManufacturer2 }
+                            Model                 = ($MonInfo.UserFriendlyName | ForEach-Object { [char]$_ }) -join ""
+                            'Serial Number'       = ($MonInfo.SerialNumberID | ForEach-Object { [char]$_ }) -join ""
                             'Year Of Manufacture' = $MonInfo.YearOfManufacture
                             'Week Of Manufacture' = $MonInfo.WeekOfManufacture
                         }
@@ -77,21 +72,17 @@
                 }
                 Remove-CimSession -InstanceId $CimSession.InstanceId
             }
-            catch
-            {
+            catch {
                 Write-Error $PSItem.Exception
-                if ($ComputerName -ge 1)
-                {
+                if ($ComputerName -ge 1) {
                     Continue
                 }
-                else
-                {
+                else {
                     break
                 }
             }
         }
-        else
-        {
+        else {
             Write-Output "$Computer are not connected to the network or it's trouble with WinRM"
         }
     }
