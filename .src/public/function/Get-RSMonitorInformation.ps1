@@ -77,7 +77,7 @@
             }
 
             try {
-                Test-WSMan -ComputerName $Computer -ErrorAction Stop | Out-Null
+                [void](Test-WSMan -ComputerName $Computer -ErrorAction Stop)
             }
             catch {
                 Write-Warning "$Computer is not connected to the network or there are issues with WinRM"
