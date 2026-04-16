@@ -80,7 +80,7 @@
                 Test-WSMan -ComputerName $Computer -ErrorAction Stop | Out-Null
             }
             catch {
-                Write-Output "$Computer is not connected to the network or there are issues with WinRM"
+                Write-Warning "$Computer is not connected to the network or there are issues with WinRM"
                 continue
             }
 
@@ -100,7 +100,10 @@
                 foreach ($MonInfo in @(Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace $MonitorIdNamespace -ErrorAction Stop)) {
                     $DisplayPnPInfo = $null
                     if (-not [String]::IsNullOrWhiteSpace($MonInfo.InstanceName)) {
-                        $DisplayPnPInfo = $PnPInfoByDeviceId[($MonInfo.InstanceName -replace '_0$', '')]
+                        $PnPDeviceId = $MonInfo.InstanceName -replace '_0$', ''
+                        if ($PnPInfoByDeviceId.ContainsKey($PnPDeviceId)) {
+                            $DisplayPnPInfo = $PnPInfoByDeviceId[$PnPDeviceId]
+                        }
                     }
 
                     $ManufacturerCode = & $ConvertCharacterCodeArrayToString $MonInfo.ManufacturerName
