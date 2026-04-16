@@ -123,7 +123,7 @@ Function Get-RSMonitorInformation {
                 foreach ($MonInfo in @(Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace $MonitorIdNamespace -ErrorAction Stop)) {
                     $DisplayPnPInfo = $null
                     if (-not [String]::IsNullOrWhiteSpace($MonInfo.InstanceName)) {
-                        $DisplayPnPInfo = $PnPInfoByDeviceId[$MonInfo.InstanceName.TrimEnd('_', '0')]
+                        $DisplayPnPInfo = $PnPInfoByDeviceId[($MonInfo.InstanceName -replace '_0$', '')]
                     }
 
                     $ManufacturerCode = & $ConvertCharacterCodeArrayToString $MonInfo.ManufacturerName
