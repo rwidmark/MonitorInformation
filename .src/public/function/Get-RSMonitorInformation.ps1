@@ -115,10 +115,17 @@
                         $ManufacturerName = Convert-MonitorManufacturer -Manufacturer $ManufacturerCode
                     }
 
+                    $Status = $null
+                    $Availability = $null
+                    if ($null -ne $DisplayPnPInfo) {
+                        $Status = $DisplayPnPInfo.Status
+                        $Availability = $DisplayPnPInfo.Availability
+                    }
+
                     [PSCustomObject]@{
                         Active                = $MonInfo.Active
-                        Status                = $DisplayPnPInfo.Status
-                        Availability          = $DisplayPnPInfo.Availability
+                        Status                = $Status
+                        Availability          = $Availability
                         'Manufacturer Name'   = $ManufacturerName
                         Model                 = & $ConvertCharacterCodeArrayToString $MonInfo.UserFriendlyName
                         'Serial Number'       = & $ConvertCharacterCodeArrayToString $MonInfo.SerialNumberID

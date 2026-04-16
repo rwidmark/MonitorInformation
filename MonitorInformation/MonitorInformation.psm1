@@ -138,10 +138,17 @@ Function Get-RSMonitorInformation {
                         $ManufacturerName = Convert-MonitorManufacturer -Manufacturer $ManufacturerCode
                     }
 
+                    $Status = $null
+                    $Availability = $null
+                    if ($null -ne $DisplayPnPInfo) {
+                        $Status = $DisplayPnPInfo.Status
+                        $Availability = $DisplayPnPInfo.Availability
+                    }
+
                     [PSCustomObject]@{
                         Active                = $MonInfo.Active
-                        Status                = $DisplayPnPInfo.Status
-                        Availability          = $DisplayPnPInfo.Availability
+                        Status                = $Status
+                        Availability          = $Availability
                         'Manufacturer Name'   = $ManufacturerName
                         Model                 = & $ConvertCharacterCodeArrayToString $MonInfo.UserFriendlyName
                         'Serial Number'       = & $ConvertCharacterCodeArrayToString $MonInfo.SerialNumberID
@@ -196,6 +203,7 @@ Function Convert-MonitorManufacturer {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = "Enter the 3 letter manufacturer code")]
+        [AllowEmptyString()]
         [String]$Manufacturer
     )
 
@@ -290,6 +298,10 @@ Function Convert-MonitorManufacturer {
 
     process {
         try {
+            if ([String]::IsNullOrWhiteSpace($Manufacturer)) {
+                return [String]::Empty
+            }
+
             $NormalizedManufacturer = $Manufacturer.Trim().ToUpperInvariant()
 
             if ($ManufacturerMap.ContainsKey($NormalizedManufacturer)) {

@@ -30,6 +30,7 @@
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = "Enter the 3 letter manufacturer code")]
+        [AllowEmptyString()]
         [String]$Manufacturer
     )
 
@@ -124,6 +125,10 @@
 
     process {
         try {
+            if ([String]::IsNullOrWhiteSpace($Manufacturer)) {
+                return [String]::Empty
+            }
+
             $NormalizedManufacturer = $Manufacturer.Trim().ToUpperInvariant()
 
             if ($ManufacturerMap.ContainsKey($NormalizedManufacturer)) {
