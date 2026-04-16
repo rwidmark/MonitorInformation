@@ -107,7 +107,10 @@
                     }
 
                     $ManufacturerCode = & $ConvertCharacterCodeArrayToString $MonInfo.ManufacturerName
-                    $ManufacturerName = $DisplayPnPInfo.MonitorManufacturer
+                    $ManufacturerName = $null
+                    if ($null -ne $DisplayPnPInfo) {
+                        $ManufacturerName = $DisplayPnPInfo.MonitorManufacturer
+                    }
                     if ([String]::IsNullOrWhiteSpace($ManufacturerName)) {
                         $ManufacturerName = Convert-MonitorManufacturer -Manufacturer $ManufacturerCode
                     }

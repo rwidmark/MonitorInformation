@@ -130,7 +130,10 @@ Function Get-RSMonitorInformation {
                     }
 
                     $ManufacturerCode = & $ConvertCharacterCodeArrayToString $MonInfo.ManufacturerName
-                    $ManufacturerName = $DisplayPnPInfo.MonitorManufacturer
+                    $ManufacturerName = $null
+                    if ($null -ne $DisplayPnPInfo) {
+                        $ManufacturerName = $DisplayPnPInfo.MonitorManufacturer
+                    }
                     if ([String]::IsNullOrWhiteSpace($ManufacturerName)) {
                         $ManufacturerName = Convert-MonitorManufacturer -Manufacturer $ManufacturerCode
                     }
@@ -287,12 +290,7 @@ Function Convert-MonitorManufacturer {
 
     process {
         try {
-            $NormalizedManufacturer = if ($null -eq $Manufacturer) {
-                [String]::Empty
-            }
-            else {
-                $Manufacturer.Trim().ToUpperInvariant()
-            }
+            $NormalizedManufacturer = $Manufacturer.Trim().ToUpperInvariant()
 
             if ($ManufacturerMap.ContainsKey($NormalizedManufacturer)) {
                 $ManufacturerMap[$NormalizedManufacturer]

@@ -124,12 +124,7 @@
 
     process {
         try {
-            $NormalizedManufacturer = if ($null -eq $Manufacturer) {
-                [String]::Empty
-            }
-            else {
-                $Manufacturer.Trim().ToUpperInvariant()
-            }
+            $NormalizedManufacturer = $Manufacturer.Trim().ToUpperInvariant()
 
             if ($ManufacturerMap.ContainsKey($NormalizedManufacturer)) {
                 $ManufacturerMap[$NormalizedManufacturer]
