@@ -41,49 +41,97 @@
 
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory = $false, HelpMessage = "Enter computer or computernames that you want to run this against")]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = "Enter computer or computernames that you want to run this against")]
         [Alias('computer', 'name')]
         [String[]]$ComputerName = "localhost"
     )
 
-    foreach ($Computer in $ComputerName) {
-        if (Test-WSMan -ComputerName $Computer -ErrorAction 'SilentlyContinue') {
-            try {
-                Write-Output "`n=== Monitor information from $Computer ===`n"
-                $CimSession = New-CimSession -ComputerName $Computer
-                $PnPInfo = Get-CimInstance -CimSession $CimSession -ClassName Win32_DesktopMonitor
-                if ($null -ne $CimSession) {
-                    foreach ($MonInfo in $( Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace root\wmi )) {
-                        $DisplayPnPInfo = $PnPInfo | Where-Object { $MonInfo.InstanceName.trim("_0") -eq $_.PNPDeviceID }
-                        $GetManufacturer = $DisplayPnPInfo | Select-Object -ExpandProperty MonitorManufacturer
-                        $GetManufacturer2 = Convert-MonitorManufacturer -Manufacturer $(($MonInfo.ManufacturerName | ForEach-Object { [char]$_ }) -join "")
+    begin {
+        $MonitorIdNamespace = 'root\wmi'
+        $ConvertCharacterCodeArrayToString = {
+            Param(
+                [UInt16[]]$Value
+            )
 
-                        [PSCustomObject]@{
-                            Active                = $MonInfo.Active
-                            Status                = $DisplayPnPInfo | Select-Object -ExpandProperty Status
-                            Availability          = $DisplayPnPInfo | Select-Object -ExpandProperty Availability
-                            'Manufacturer Name'   = if ($null -ne $GetManufacturer) { $GetManufacturer } else { $GetManufacturer2 }
-                            Model                 = ($MonInfo.UserFriendlyName | ForEach-Object { [char]$_ }) -join ""
-                            'Serial Number'       = ($MonInfo.SerialNumberID | ForEach-Object { [char]$_ }) -join ""
-                            'Year Of Manufacture' = $MonInfo.YearOfManufacture
-                            'Week Of Manufacture' = $MonInfo.WeekOfManufacture
-                        }
-                    }
+            if ($null -eq $Value) {
+                return [String]::Empty
+            }
+
+            $StringBuilder = New-Object System.Text.StringBuilder
+            foreach ($CharacterCode in $Value) {
+                if ($CharacterCode -eq 0) {
+                    continue
                 }
-                Remove-CimSession -InstanceId $CimSession.InstanceId
+
+                [void]$StringBuilder.Append([char]$CharacterCode)
+            }
+
+            return $StringBuilder.ToString().Trim()
+        }
+    }
+
+    process {
+        foreach ($Computer in $ComputerName) {
+            if ([String]::IsNullOrWhiteSpace($Computer)) {
+                continue
+            }
+
+            try {
+                Test-WSMan -ComputerName $Computer -ErrorAction Stop | Out-Null
             }
             catch {
-                Write-Error $PSItem.Exception
-                if ($ComputerName -ge 1) {
-                    Continue
+                Write-Output "$Computer are not connected to the network or it's trouble with WinRM"
+                continue
+            }
+
+            $CimSession = $null
+
+            try {
+                Write-Output "`n=== Monitor information from $Computer ===`n"
+                $CimSession = New-CimSession -ComputerName $Computer -ErrorAction Stop
+
+                $PnPInfoByDeviceId = @{}
+                foreach ($DisplayPnPInfo in @(Get-CimInstance -CimSession $CimSession -ClassName Win32_DesktopMonitor -ErrorAction Stop)) {
+                    if (-not [String]::IsNullOrWhiteSpace($DisplayPnPInfo.PNPDeviceID)) {
+                        $PnPInfoByDeviceId[$DisplayPnPInfo.PNPDeviceID] = $DisplayPnPInfo
+                    }
                 }
-                else {
-                    break
+
+                foreach ($MonInfo in @(Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace $MonitorIdNamespace -ErrorAction Stop)) {
+                    $DisplayPnPInfo = $null
+                    if (-not [String]::IsNullOrWhiteSpace($MonInfo.InstanceName)) {
+                        $DisplayPnPInfo = $PnPInfoByDeviceId[$MonInfo.InstanceName.TrimEnd('_', '0')]
+                    }
+
+                    $ManufacturerCode = & $ConvertCharacterCodeArrayToString $MonInfo.ManufacturerName
+                    $ManufacturerName = $DisplayPnPInfo.MonitorManufacturer
+                    if ([String]::IsNullOrWhiteSpace($ManufacturerName)) {
+                        $ManufacturerName = Convert-MonitorManufacturer -Manufacturer $ManufacturerCode
+                    }
+
+                    [PSCustomObject]@{
+                        Active                = $MonInfo.Active
+                        Status                = $DisplayPnPInfo.Status
+                        Availability          = $DisplayPnPInfo.Availability
+                        'Manufacturer Name'   = $ManufacturerName
+                        Model                 = & $ConvertCharacterCodeArrayToString $MonInfo.UserFriendlyName
+                        'Serial Number'       = & $ConvertCharacterCodeArrayToString $MonInfo.SerialNumberID
+                        'Year Of Manufacture' = $MonInfo.YearOfManufacture
+                        'Week Of Manufacture' = $MonInfo.WeekOfManufacture
+                    }
+                }
+            }
+            catch {
+                Write-Error -Message "Failed to retrieve monitor information from $Computer. $($PSItem.Exception.Message)"
+            }
+            finally {
+                if ($null -ne $CimSession) {
+                    Remove-CimSession -CimSession $CimSession -ErrorAction SilentlyContinue
                 }
             }
         }
-        else {
-            Write-Output "$Computer are not connected to the network or it's trouble with WinRM"
-        }
+    }
+
+    end {
     }
 }

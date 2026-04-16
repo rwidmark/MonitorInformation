@@ -64,50 +64,98 @@ Function Get-RSMonitorInformation {
 
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory = $false, HelpMessage = "Enter computer or computernames that you want to run this against")]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = "Enter computer or computernames that you want to run this against")]
         [Alias('computer', 'name')]
         [String[]]$ComputerName = "localhost"
     )
 
-    foreach ($Computer in $ComputerName) {
-        if (Test-WSMan -ComputerName $Computer -ErrorAction 'SilentlyContinue') {
-            try {
-                Write-Output "`n=== Monitor information from $Computer ===`n"
-                $CimSession = New-CimSession -ComputerName $Computer
-                $PnPInfo = Get-CimInstance -CimSession $CimSession -ClassName Win32_DesktopMonitor
-                if ($null -ne $CimSession) {
-                    foreach ($MonInfo in $( Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace root\wmi )) {
-                        $DisplayPnPInfo = $PnPInfo | Where-Object { $MonInfo.InstanceName.trim("_0") -eq $_.PNPDeviceID }
-                        $GetManufacturer = $DisplayPnPInfo | Select-Object -ExpandProperty MonitorManufacturer
-                        $GetManufacturer2 = Convert-MonitorManufacturer -Manufacturer $(($MonInfo.ManufacturerName | ForEach-Object { [char]$_ }) -join "")
+    begin {
+        $MonitorIdNamespace = 'root\wmi'
+        $ConvertCharacterCodeArrayToString = {
+            Param(
+                [UInt16[]]$Value
+            )
 
-                        [PSCustomObject]@{
-                            Active                = $MonInfo.Active
-                            Status                = $DisplayPnPInfo | Select-Object -ExpandProperty Status
-                            Availability          = $DisplayPnPInfo | Select-Object -ExpandProperty Availability
-                            'Manufacturer Name'   = if ($null -ne $GetManufacturer) { $GetManufacturer } else { $GetManufacturer2 }
-                            Model                 = ($MonInfo.UserFriendlyName | ForEach-Object { [char]$_ }) -join ""
-                            'Serial Number'       = ($MonInfo.SerialNumberID | ForEach-Object { [char]$_ }) -join ""
-                            'Year Of Manufacture' = $MonInfo.YearOfManufacture
-                            'Week Of Manufacture' = $MonInfo.WeekOfManufacture
-                        }
-                    }
+            if ($null -eq $Value) {
+                return [String]::Empty
+            }
+
+            $StringBuilder = New-Object System.Text.StringBuilder
+            foreach ($CharacterCode in $Value) {
+                if ($CharacterCode -eq 0) {
+                    continue
                 }
-                Remove-CimSession -InstanceId $CimSession.InstanceId
+
+                [void]$StringBuilder.Append([char]$CharacterCode)
+            }
+
+            return $StringBuilder.ToString().Trim()
+        }
+    }
+
+    process {
+        foreach ($Computer in $ComputerName) {
+            if ([String]::IsNullOrWhiteSpace($Computer)) {
+                continue
+            }
+
+            try {
+                Test-WSMan -ComputerName $Computer -ErrorAction Stop | Out-Null
             }
             catch {
-                Write-Error $PSItem.Exception
-                if ($ComputerName -ge 1) {
-                    Continue
+                Write-Output "$Computer are not connected to the network or it's trouble with WinRM"
+                continue
+            }
+
+            $CimSession = $null
+
+            try {
+                Write-Output "`n=== Monitor information from $Computer ===`n"
+                $CimSession = New-CimSession -ComputerName $Computer -ErrorAction Stop
+
+                $PnPInfoByDeviceId = @{}
+                foreach ($DisplayPnPInfo in @(Get-CimInstance -CimSession $CimSession -ClassName Win32_DesktopMonitor -ErrorAction Stop)) {
+                    if (-not [String]::IsNullOrWhiteSpace($DisplayPnPInfo.PNPDeviceID)) {
+                        $PnPInfoByDeviceId[$DisplayPnPInfo.PNPDeviceID] = $DisplayPnPInfo
+                    }
                 }
-                else {
-                    break
+
+                foreach ($MonInfo in @(Get-CimInstance -CimSession $CimSession -ClassName WmiMonitorID -Namespace $MonitorIdNamespace -ErrorAction Stop)) {
+                    $DisplayPnPInfo = $null
+                    if (-not [String]::IsNullOrWhiteSpace($MonInfo.InstanceName)) {
+                        $DisplayPnPInfo = $PnPInfoByDeviceId[$MonInfo.InstanceName.TrimEnd('_', '0')]
+                    }
+
+                    $ManufacturerCode = & $ConvertCharacterCodeArrayToString $MonInfo.ManufacturerName
+                    $ManufacturerName = $DisplayPnPInfo.MonitorManufacturer
+                    if ([String]::IsNullOrWhiteSpace($ManufacturerName)) {
+                        $ManufacturerName = Convert-MonitorManufacturer -Manufacturer $ManufacturerCode
+                    }
+
+                    [PSCustomObject]@{
+                        Active                = $MonInfo.Active
+                        Status                = $DisplayPnPInfo.Status
+                        Availability          = $DisplayPnPInfo.Availability
+                        'Manufacturer Name'   = $ManufacturerName
+                        Model                 = & $ConvertCharacterCodeArrayToString $MonInfo.UserFriendlyName
+                        'Serial Number'       = & $ConvertCharacterCodeArrayToString $MonInfo.SerialNumberID
+                        'Year Of Manufacture' = $MonInfo.YearOfManufacture
+                        'Week Of Manufacture' = $MonInfo.WeekOfManufacture
+                    }
+                }
+            }
+            catch {
+                Write-Error -Message "Failed to retrieve monitor information from $Computer. $($PSItem.Exception.Message)"
+            }
+            finally {
+                if ($null -ne $CimSession) {
+                    Remove-CimSession -CimSession $CimSession -ErrorAction SilentlyContinue
                 }
             }
         }
-        else {
-            Write-Output "$Computer are not connected to the network or it's trouble with WinRM"
-        }
+    }
+
+    end {
     }
 }
 Function Convert-MonitorManufacturer {
@@ -141,265 +189,120 @@ Function Convert-MonitorManufacturer {
 
     [CmdletBinding()]
     Param(
-        [Parameter(Mandatory = $true, HelpMessage = "Enter the 3 letter manufacturer code")]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, HelpMessage = "Enter the 3 letter manufacturer code")]
         [String]$Manufacturer
     )
 
-    Switch ($Manufacturer) {
-        ACI {
-            return "Asus"
-        }
-        ACR {
-            return "Acer"
-        }
-        ACT {
-            return "Targa"
-        }
-        ADI {
-            return "ADI Corporation"
-        }
-        AMW {
-            return "AMW"
-        }
-        AOC {
-            return "AOC"
-        }
-        API {
-            return "Acer"
-        }
-        APP {
-            return "Apple"
-        }
-        ART {
-            return "ArtMedia"
-        }
-        AST {
-            return "AST Research"
-        }
-        AUO {
-            return "AU Optronics"
-        }
-        BMM {
-            return "BMM"
-        }
-        BNQ {
-            return "BenQ"
-        }
-        BOE {
-            return "BOE Display Technology"
-        }
-        CPL {
-            return "Compal"
-        }
-        CPQ {
-            return "COMPAQ"
-        }
-        CTX {
-            return "Chuntex"
-        }
-        DEC {
-            return "Digital Equipment Corporation"
-        }
-        DEL {
-            return "Dell"
-        }
-        DPC {
-            return "Delta"
-        }
-        DWE {
-            return "Daewoo"
-        }
-        ECS {
-            return "ELITEGROUP"
-        }
-        EIZ {
-            return "EIZO"
-        }
-        EPI {
-            return "Envision"
-        }
-        FCM {
-            return "Funai"
-        }
-        FUS {
-            return "Fujitsu Siemens"
-        }
-        GSM {
-            return "LG (GoldStar)"
-        }
-        GWY {
-            return "Gateway"
-        }
-        HEI {
-            return "Hyundai Electronics"
-        }
-        HIQ {
-            return "Hyundai ImageQuest"
-        }
-        HIT {
-            return "Hitachi"
-        }
-        HSD {
-            return "Hannspree"
-        }
-        HSL {
-            return "Hansol"
-        }
-        HTC {
-            return "Hitachi / Nissei Sangyo"
-        }
-        HWP {
-            return "Hewlett Packard (HP)"
-        }
-        HPN {
-            return "Hewlett Packard (HP)"
-        }
-        IBM {
-            return "IBM"
-        }
-        ICL {
-            return "Fujitsu"
-        }
-        IFS {
-            return "InFocus"
-        }
-        IQT {
-            return "Hyundai"
-        }
-        IVM {
-            return "Idek Iiyama"
-        }
-        KDS {
-            return "KDS"
-        }
-        KFC {
-            return "KFC Computek"
-        }
-        LEN {
-            return "Lenovo"
-        }
-        LGD {
-            return "LG"
-        }
-        LKM {
-            return "ADLAS / AZALEA"
-        }
-        LNK {
-            return "LINK"
-        }
-        LPL {
-            return "LG Philips"
-        }
-        LTN {
-            return "Lite-On"
-        }
-        MAG {
-            return "MAG InnoVision"
-        }
-        MAX {
-            return "Maxdata"
-        }
-        MEI {
-            return "Panasonic"
-        }
-        MEL {
-            return "Mitsubishi"
-        }
-        MIR {
-            return "miro"
-        }
-        MTC {
-            return "MITAC"
-        }
-        NAN {
-            return "NANAO"
-        }
-        NEC {
-            return "NEC"
-        }
-        NOK {
-            return "Nokia"
-        }
-        NVD {
-            return "Nvidia"
-        }
-        OQI {
-            return "OPTIQUEST"
-        }
-        PBN {
-            return "Packard Bell"
-        }
-        PCK {
-            return "Daewoo"
-        }
-        PDC {
-            return "Polaroid"
-        }
-        PGS {
-            return "Princeton Graphic Systems"
-        }
-        PHL {
-            return "Philips"
-        }
-        PRT {
-            return "Princeton"
-        }
-        REL {
-            return "Relisys"
-        }
-        SAM {
-            return "Samsung"
-        }
-        SEC {
-            return "Seiko Epson"
-        }
-        SMC {
-            return "Samtron"
-        }
-        SMI {
-            return "Smile"
-        }
-        SNI {
-            return "Siemens"
-        }
-        SNY {
-            return "Sony"
-        }
-        SPT {
-            return "Sceptre"
-        }
-        SRC {
-            return "Shamrock"
-        }
-        STN {
-            return "Samtron"
-        }
-        STP {
-            return "Sceptre"
-        }
-        TAT {
-            return "Tatung"
-        }
-        TRL {
-            return "Royal"
-        }
-        TSB {
-            return "Toshiba"
-        }
-        UNM {
-            return "Unisys"
-        }
-        VSC {
-            return "ViewSonic"
-        }
-        WTC {
-            return "Wen"
-        }
-        ZCM {
-            return "Zenith"
-        }
-        default {
-            return $Manufacturer
-        }
+    begin {
+        $ManufacturerMap = @{
+            ACI = "Asus"
+            ACR = "Acer"
+            ACT = "Targa"
+            ADI = "ADI Corporation"
+            AMW = "AMW"
+            AOC = "AOC"
+            API = "Acer"
+            APP = "Apple"
+            ART = "ArtMedia"
+            AST = "AST Research"
+            AUO = "AU Optronics"
+            BMM = "BMM"
+            BNQ = "BenQ"
+            BOE = "BOE Display Technology"
+            CPL = "Compal"
+            CPQ = "COMPAQ"
+            CTX = "Chuntex"
+            DEC = "Digital Equipment Corporation"
+            DEL = "Dell"
+            DPC = "Delta"
+            DWE = "Daewoo"
+            ECS = "ELITEGROUP"
+            EIZ = "EIZO"
+            EPI = "Envision"
+            FCM = "Funai"
+            FUS = "Fujitsu Siemens"
+            GSM = "LG (GoldStar)"
+            GWY = "Gateway"
+            HEI = "Hyundai Electronics"
+            HIQ = "Hyundai ImageQuest"
+            HIT = "Hitachi"
+            HSD = "Hannspree"
+            HSL = "Hansol"
+            HTC = "Hitachi / Nissei Sangyo"
+            HWP = "Hewlett Packard (HP)"
+            HPN = "Hewlett Packard (HP)"
+            IBM = "IBM"
+            ICL = "Fujitsu"
+            IFS = "InFocus"
+            IQT = "Hyundai"
+            IVM = "Idek Iiyama"
+            KDS = "KDS"
+            KFC = "KFC Computek"
+            LEN = "Lenovo"
+            LGD = "LG"
+            LKM = "ADLAS / AZALEA"
+            LNK = "LINK"
+            LPL = "LG Philips"
+            LTN = "Lite-On"
+            MAG = "MAG InnoVision"
+            MAX = "Maxdata"
+            MEI = "Panasonic"
+            MEL = "Mitsubishi"
+            MIR = "miro"
+            MTC = "MITAC"
+            NAN = "NANAO"
+            NEC = "NEC"
+            NOK = "Nokia"
+            NVD = "Nvidia"
+            OQI = "OPTIQUEST"
+            PBN = "Packard Bell"
+            PCK = "Daewoo"
+            PDC = "Polaroid"
+            PGS = "Princeton Graphic Systems"
+            PHL = "Philips"
+            PRT = "Princeton"
+            REL = "Relisys"
+            SAM = "Samsung"
+            SEC = "Seiko Epson"
+            SMC = "Samtron"
+            SMI = "Smile"
+            SNI = "Siemens"
+            SNY = "Sony"
+            SPT = "Sceptre"
+            SRC = "Shamrock"
+            STN = "Samtron"
+            STP = "Sceptre"
+            TAT = "Tatung"
+            TRL = "Royal"
+            TSB = "Toshiba"
+            UNM = "Unisys"
+            VSC = "ViewSonic"
+            WTC = "Wen"
+            ZCM = "Zenith"
+        }
+    }
+
+    process {
+        try {
+            $NormalizedManufacturer = if ($null -eq $Manufacturer) {
+                [String]::Empty
+            }
+            else {
+                $Manufacturer.Trim().ToUpperInvariant()
+            }
+
+            if ($ManufacturerMap.ContainsKey($NormalizedManufacturer)) {
+                $ManufacturerMap[$NormalizedManufacturer]
+            }
+            else {
+                $NormalizedManufacturer
+            }
+        }
+        catch {
+            Write-Error -Message "Failed to resolve monitor manufacturer '$Manufacturer'. $($PSItem.Exception.Message)"
+        }
+    }
+
+    end {
     }
 }
